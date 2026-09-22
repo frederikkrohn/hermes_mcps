@@ -73,6 +73,41 @@ export function mimeFromPath(pathOrUrl: string): string | undefined {
 }
 
 /**
+ * Convert an HTTP/data URL into the file shape expected by WAHA.
+ * WAHA treats `url` and `data` as different input paths, so data: URIs must
+ * be decoded into the base64 `data` field before sending.
+ */
+export function fileSourceToWahaFile(
+  source: string,
+  options: { mimetype?: string; filename?: string } = {},
+): Record<string, string> {
+  if (!source.startsWith('data:')) {
+    const file: Record<string, string> = { url: source };
+    const mimetype = options.mimetype || mimeFromPath(source);
+    if (mimetype) file.mimetype = mimetype;
+    if (options.filename) file.filename = options.filename;
+    return file;
+  }
+
+  const comma = source.indexOf(',');
+  if (comma < 0) throw new Error('Invalid data URL: missing comma separator');
+  const metadata = source.slice(5, comma);
+  const payload = source.slice(comma + 1);
+  const metadataParts = metadata.split(';');
+  const declaredMimetype = metadataParts[0] || undefined;
+  const isBase64 = metadataParts.includes('base64');
+  const data = isBase64
+    ? payload.replace(/\s/g, '')
+    : Buffer.from(decodeURIComponent(payload), 'utf8').toString('base64');
+
+  return {
+    data,
+    mimetype: options.mimetype || declaredMimetype || 'application/octet-stream',
+    ...(options.filename ? { filename: options.filename } : {}),
+  };
+}
+
+/**
  * Optional containment for local-file reads: when WAHA_MCP_FILES_DIR is set,
  * only files inside that directory may be read. This blocks prompt-injected
  * exfiltration of arbitrary local files (e.g. SSH keys) via send tools.

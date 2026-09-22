@@ -39,7 +39,7 @@ export interface WebhookConfig {
 }
 
 // Chat ID formats
-// User: 123456789@c.us
+// User: 123456789@c.us or 123456789@lid
 // Group: 123456789@g.us
 // Channel: 123456789@newsletter
 

@@ -2,11 +2,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { sessionParam } from '../utils/session.js';
 import { WAHAClient } from '../client.js';
-import { SendResult, WAMessage } from '../types.js';
-import { fileToBase64, mimeFromPath } from '../utils/file-utils.js';
+import { ContactInfo, SendResult, WAMessage } from '../types.js';
+import { fileSourceToWahaFile, fileToBase64 } from '../utils/file-utils.js';
 import { compactJson, listResponse, messageIdOf, projectMessage } from '../utils/format.js';
 import { throttleSend } from '../utils/throttle.js';
 import { defineTool } from '../utils/define-tool.js';
+import { resolveLid } from '../utils/lid.js';
 
 /** Build the WAHA file object from a local path or a URL (exactly one must be set). */
 async function buildFileObject(
@@ -25,11 +26,35 @@ async function buildFileObject(
     const { data, mimetype, filename } = await fileToBase64(localPath);
     return { data, mimetype, filename };
   }
-  // URL: derive mimetype from the extension when recognizable, else let WAHA detect it.
-  const fileObj: Record<string, unknown> = { url };
-  const mimetype = mimeFromPath(url!);
-  if (mimetype) fileObj.mimetype = mimetype;
-  return fileObj;
+  return fileSourceToWahaFile(url!);
+}
+
+async function contactIdToWahaContact(
+  client: WAHAClient,
+  session: string,
+  contactId: string,
+): Promise<Record<string, string>> {
+  const resolvedId = contactId.endsWith('@lid')
+    ? await resolveLid(client, session, contactId)
+    : contactId;
+  if (!resolvedId) {
+    throw new Error(`Could not resolve LID contact ${contactId} to a phone number`);
+  }
+
+  const contact = await client.get<ContactInfo>('/api/contacts', {
+    session,
+    contactId: resolvedId,
+  });
+  const phoneNumber = resolvedId.split('@')[0].split(':')[0];
+  if (!/^\d+$/.test(phoneNumber)) {
+    throw new Error(`Contact ${contactId} is not a phone-number contact`);
+  }
+
+  return {
+    fullName: contact.name || contact.pushname || phoneNumber,
+    phoneNumber,
+    whatsappId: phoneNumber,
+  };
 }
 
 export function registerMessageTools(server: McpServer, client: WAHAClient): void {
@@ -168,17 +193,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
           filename: filename || fileData.filename,
         };
       } else {
-        const url = fileUrl!;
-        // data: URL (data:mime;base64,...) → send as base64 payload
-        const base64Match = url.match(/^data:([^;]+);base64,(.+)$/);
-        if (base64Match) {
-          fileObj = { data: base64Match[2], mimetype: mimetype || base64Match[1] };
-        } else {
-          fileObj = { url };
-          const derived = mimetype || mimeFromPath(url);
-          if (derived) fileObj.mimetype = derived;
-        }
-        if (filename) fileObj.filename = filename;
+        fileObj = fileSourceToWahaFile(fileUrl!, { mimetype, filename });
       }
 
       const body: Record<string, unknown> = { session, chatId, file: fileObj };
@@ -212,15 +227,18 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
 
   defineTool(server, {
     name: 'waha_send_contact',
-    description: 'Send contact card(s) (vCard) to a WhatsApp chat. Contact IDs like "123@c.us".',
+    description: 'Send contact card(s) (vCard) to a WhatsApp chat. Contact IDs like "123@c.us" or "123@lid".',
     schema: {
       chatId: z.string().describe('Chat ID (e.g. "123@c.us" / "123@g.us")'),
       contactsId: z.array(z.string()).describe('Contact IDs to share (e.g. ["1234567890@c.us"])'),
       session: sessionParam(),
     },
     handler: async ({ chatId, contactsId, session }) => {
+      const contacts = await Promise.all(
+        contactsId.map((contactId) => contactIdToWahaContact(client, session, contactId)),
+      );
       await throttleSend(chatId);
-      const result = await client.post<SendResult>('/api/sendContactVcard', { session, chatId, contactsId });
+      const result = await client.post<SendResult>('/api/sendContactVcard', { session, chatId, contacts });
       return `Sent. id=${messageIdOf(result)}`;
     },
   });
@@ -280,10 +298,10 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
       const params: Record<string, string | number | boolean | undefined> = { limit, offset };
       if (downloadMedia !== undefined) params.downloadMedia = downloadMedia;
       if (fromMe !== undefined) params['filter.fromMe'] = fromMe;
+      if (timestampGte !== undefined) params['filter.timestamp.gte'] = timestampGte;
+      if (timestampLte !== undefined) params['filter.timestamp.lte'] = timestampLte;
       if (ack !== undefined) params['filter.ack'] = ack;
 
-      // Timestamp filters are applied client-side: filter.timestamp.gte/lte
-      // 500s on the WEBJS engine.
       let messages = await client.get<WAMessage[]>(
         `/api/${encodeURIComponent(session)}/chats/${encodeURIComponent(chatId)}/messages`,
         params,

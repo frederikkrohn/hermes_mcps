@@ -6,7 +6,7 @@ import { SendResult } from '../types.js';
 import { defineTool } from '../utils/define-tool.js';
 import { messageIdOf } from '../utils/format.js';
 import { throttleSend } from '../utils/throttle.js';
-import { fileToBase64, mimeFromPath } from '../utils/file-utils.js';
+import { fileSourceToWahaFile, fileToBase64 } from '../utils/file-utils.js';
 
 /**
  * Build the WAHA file payload from either a remote URL or a local path.
@@ -23,7 +23,9 @@ async function buildFilePayload(
     const { data, mimetype, filename } = await fileToBase64(path);
     return { data, mimetype, filename };
   }
-  return { url, mimetype: mimeFromPath(url!) ?? fallbackMimetype };
+  const file = fileSourceToWahaFile(url!);
+  if (!file.mimetype) file.mimetype = fallbackMimetype;
+  return file;
 }
 
 export function registerStatusTools(server: McpServer, client: WAHAClient): void {

@@ -416,7 +416,7 @@ Understanding WhatsApp ID formats:
 
 | Type | Format | Example |
 |------|--------|---------|
-| **User** | `{phone}@c.us` | `1234567890@c.us` |
+| **User** | `{phone}@c.us` or `{lid}@lid` | `1234567890@c.us` / `73216374657121@lid` |
 | **Group** | `{id}@g.us` | `1234567890-1234567890@g.us` |
 | **Channel** | `{id}@newsletter` | `1234567890@newsletter` |
 | **Status** | `status@broadcast` | `status@broadcast` |

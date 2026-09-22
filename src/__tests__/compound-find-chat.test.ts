@@ -77,4 +77,28 @@ describe('waha_find_chat directory fallback', () => {
     expect(text).toContain('120363000000000000@g.us');
     expect(text).toContain('"type":"group"');
   });
+
+  it('prefers the real @lid chat over a same-name @c.us contact', async () => {
+    const get = vi.fn((path: string) => {
+      if (path === '/api/contacts/all') {
+        return Promise.resolve([{ id: '491701234567@c.us', name: 'Frederik Krohn' }]);
+      }
+      if (path.endsWith('/chats/overview')) {
+        return Promise.resolve([
+          { id: '73216374657121@lid', name: 'Frederik Krohn', timestamp: 1_788_000_000 },
+        ]);
+      }
+      return Promise.reject(new Error(`unexpected path ${path}`));
+    });
+    const tools = captureTools({ get } as unknown as Pick<WAHAClient, 'get'>);
+
+    const text = textOf(await tools.get('waha_find_chat')!({
+      query: 'Frederik Krohn',
+      session: 'lid-chat-test',
+      limit: 1,
+    }));
+
+    expect(text).toContain('73216374657121@lid');
+    expect(text).not.toContain('491701234567@c.us');
+  });
 });

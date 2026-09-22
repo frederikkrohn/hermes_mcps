@@ -55,6 +55,8 @@ describe('WAHAClient.request', () => {
       offset: 0,
       archived: false,
       sortBy: 'name',
+      'filter.timestamp.gte': 10,
+      'filter.timestamp.lte': 20,
       skipMe: undefined,
     });
 
@@ -65,6 +67,8 @@ describe('WAHAClient.request', () => {
     expect(url.searchParams.get('offset')).toBe('0');
     expect(url.searchParams.get('archived')).toBe('false');
     expect(url.searchParams.get('sortBy')).toBe('name');
+    expect(url.searchParams.get('filter.timestamp.gte')).toBe('10');
+    expect(url.searchParams.get('filter.timestamp.lte')).toBe('20');
     expect(url.searchParams.has('skipMe')).toBe(false);
   });
 

@@ -5,7 +5,7 @@ import { WAHAClient } from '../client.js';
 import { GroupInfo } from '../types.js';
 import { defineTool } from '../utils/define-tool.js';
 import { compactJson, listResponse, messageIdOf, projectGroup } from '../utils/format.js';
-import { fileToBase64 } from '../utils/file-utils.js';
+import { fileSourceToWahaFile, fileToBase64 } from '../utils/file-utils.js';
 import { throttleGroupOp } from '../utils/throttle.js';
 
 /** GOWS participant shape ({JID, IsAdmin, ...}) differs from NOWEB/WEBJS ({id, role}). */
@@ -236,7 +236,7 @@ export function registerGroupTools(server: McpServer, client: WAHAClient): void 
         const { data, mimetype, filename } = await fileToBase64(imagePath);
         file = { data, mimetype, filename };
       } else {
-        file = { url: imageUrl };
+        file = fileSourceToWahaFile(imageUrl!);
       }
       await throttleGroupOp();
       await client.put(

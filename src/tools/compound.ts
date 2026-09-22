@@ -96,7 +96,7 @@ export function registerCompoundTools(server: McpServer, client: WAHAClient): vo
   defineTool(server, {
     name: 'waha_find_chat',
     description:
-      "Use whenever the user refers to a person/group by name — resolves to chatId (like 123@c.us / 123@g.us). Call before any send/read tool if you don't have the chatId.",
+      "Use whenever the user refers to a person/group by name — resolves to the opaque chatId (like 123@c.us, 123@lid, or 123@g.us). Call before any send/read tool if you don't have the chatId.",
     schema: {
       query: z.string().describe('Human name to search for, e.g. "Shlomo" or "Family group"'),
       session: sessionParam(),
@@ -154,7 +154,11 @@ export function registerCompoundTools(server: McpServer, client: WAHAClient): vo
         });
       }
 
-      const ranked = [...matches.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+      const typeRank = (type: Match['type']): number =>
+        type === 'group' ? 3 : type === 'chat' ? 2 : 1;
+      const ranked = [...matches.values()]
+        .sort((a, b) => b.score - a.score || typeRank(b.type) - typeRank(a.type))
+        .slice(0, limit);
       if (ranked.length === 0) {
         return `No matches for "${query}". Check the spelling, or browse with waha_get_contacts.`;
       }
@@ -213,7 +217,7 @@ export function registerCompoundTools(server: McpServer, client: WAHAClient): vo
   defineTool(server, {
     name: 'waha_get_chat_context',
     description:
-      "PRIMARY tool for 'read what X wrote': returns the conversation rendered for reading — names resolved, voice notes transcribed inline, media summarized. Prefer this over waha_get_messages. chatId like 123@c.us / 123@g.us.",
+      "PRIMARY tool for 'read what X wrote': returns the conversation rendered for reading — names resolved, voice notes transcribed inline, media summarized. Prefer this over waha_get_messages. chatId like 123@c.us, 123@lid, or 123@g.us.",
     schema: {
       chatId: z.string().describe('Chat ID, e.g. 123@c.us or 123@g.us'),
       session: sessionParam(),
@@ -223,11 +227,9 @@ export function registerCompoundTools(server: McpServer, client: WAHAClient): vo
     },
     annotations: { readOnlyHint: true },
     handler: async ({ chatId, session, limit, sinceTimestamp, transcribeVoice }) => {
-      // No server-side timestamp filter: filter.timestamp.gte 500s on the
-      // WEBJS engine — fetch and filter client-side.
       let messages = await client.get<WAMessage[]>(
         `/api/${encodeURIComponent(session)}/chats/${encodeURIComponent(chatId)}/messages`,
-        { limit, downloadMedia: true },
+        { limit, downloadMedia: true, 'filter.timestamp.gte': sinceTimestamp },
       );
       if (sinceTimestamp !== undefined) {
         messages = messages.filter((m) => m.timestamp >= sinceTimestamp);
