@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import {
   formatTime,
   truncate,
@@ -10,6 +10,20 @@ import {
 import type { ChatInfo, ContactInfo, WAMessage } from '../types.js';
 
 describe('formatTime', () => {
+  const originalTimeZone = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = 'Europe/Berlin';
+  });
+
+  afterAll(() => {
+    if (originalTimeZone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTimeZone;
+    }
+  });
+
   it('returns empty string for undefined', () => {
     expect(formatTime(undefined)).toBe('');
   });
@@ -29,6 +43,14 @@ describe('formatTime', () => {
     const local = new Date(2026, 0, 5, 7, 8, 0); // 2026-01-05 07:08 local
     const unixSeconds = Math.floor(local.getTime() / 1000);
     expect(formatTime(unixSeconds)).toBe('2026-01-05 07:08');
+  });
+
+  it('formats a summer timestamp in Europe/Berlin', () => {
+    expect(formatTime(1790023164)).toBe('2026-09-21 22:39');
+  });
+
+  it('formats a winter timestamp with UTC+1 in Europe/Berlin', () => {
+    expect(formatTime(1766349540)).toBe('2025-12-21 21:39');
   });
 });
 

@@ -5,7 +5,7 @@ export function compactJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-/** Unix seconds → "2026-06-10 14:32" (local time, no seconds/ms noise). */
+/** Unix seconds → "2026-06-10 14:32" (process-local time, no seconds/ms noise). */
 export function formatTime(unixSeconds?: number): string {
   if (!unixSeconds) return '';
   const d = new Date(unixSeconds * 1000);
