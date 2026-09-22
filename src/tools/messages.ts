@@ -4,7 +4,7 @@ import { sessionParam } from '../utils/session.js';
 import { WAHAClient } from '../client.js';
 import { ContactInfo, SendResult, WAMessage } from '../types.js';
 import { fileSourceToWahaFile, fileToBase64 } from '../utils/file-utils.js';
-import { compactJson, listResponse, messageIdOf, projectMessage } from '../utils/format.js';
+import { compactJson, listResponse, messageResult, projectMessage } from '../utils/format.js';
 import { throttleSend } from '../utils/throttle.js';
 import { defineTool } from '../utils/define-tool.js';
 import { resolveLid } from '../utils/lid.js';
@@ -96,7 +96,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
 
       await throttleSend(chatId);
       const result = await client.post<SendResult>('/api/sendText', body);
-      let response = `Sent. id=${messageIdOf(result)}`;
+      let response = messageResult('Sent', result);
       if (finalText !== text) {
         response += `\nNote: mention tags were missing, sent text was adjusted to: "${finalText}"`;
       }
@@ -123,7 +123,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
 
       await throttleSend(chatId);
       const result = await client.post<SendResult>('/api/sendImage', body);
-      return `Sent. id=${messageIdOf(result)}`;
+      return messageResult('Sent', result);
     },
   });
 
@@ -145,7 +145,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
 
       await throttleSend(chatId);
       const result = await client.post<SendResult>('/api/sendVideo', body);
-      return `Sent. id=${messageIdOf(result)}`;
+      return messageResult('Sent', result);
     },
   });
 
@@ -163,7 +163,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
       const fileObj = await buildFileObject(audioPath, audioUrl, 'audioPath', 'audioUrl');
       await throttleSend(chatId);
       const result = await client.post<SendResult>('/api/sendVoice', { session, chatId, file: fileObj, convert });
-      return `Sent. id=${messageIdOf(result)}`;
+      return messageResult('Sent', result);
     },
   });
 
@@ -204,7 +204,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
 
       await throttleSend(chatId);
       const result = await client.post<SendResult>('/api/sendFile', body);
-      return `Sent. id=${messageIdOf(result)}`;
+      return messageResult('Sent', result);
     },
   });
 
@@ -224,7 +224,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
 
       await throttleSend(chatId);
       const result = await client.post<SendResult>('/api/sendLocation', body);
-      return `Sent. id=${messageIdOf(result)}`;
+      return messageResult('Sent', result);
     },
   });
 
@@ -244,7 +244,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
       // WAHA's vCard endpoint expects the resolved contact DTOs, not the
       // input IDs; using contactsId here produces no usable contact card.
       const result = await client.post<SendResult>('/api/sendContactVcard', { session, chatId, contacts });
-      return `Sent. id=${messageIdOf(result)}`;
+      return messageResult('Sent', result);
     },
   });
 
@@ -265,7 +265,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
         chatId,
         poll: { name: pollName, options, multipleAnswers },
       });
-      return `Sent. id=${messageIdOf(result)}`;
+      return messageResult('Sent', result);
     },
   });
 
@@ -458,7 +458,7 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
         chatId: toChatId,
         messageId,
       });
-      return `Forwarded. id=${messageIdOf(result)}`;
+      return messageResult('Forwarded', result);
     },
   });
 }

@@ -6,6 +6,8 @@ import {
   projectMessage,
   projectChat,
   projectContact,
+  messageIdOf,
+  messageResult,
 } from '../utils/format.js';
 import type { ChatInfo, ContactInfo, WAMessage } from '../types.js';
 
@@ -67,6 +69,22 @@ describe('truncate', () => {
     const result = truncate('hello world', 8);
     expect(result).toBe('hello w…');
     expect(result.length).toBe(8);
+  });
+});
+
+describe('messageIdOf', () => {
+  it('returns an empty id instead of serializing an unknown response object', () => {
+    expect(messageIdOf({ sent: [] })).toBe('');
+    expect(messageIdOf({ id: { sent: [] } })).toBe('');
+  });
+
+  it('uses a nested message id string', () => {
+    expect(messageIdOf({ messageId: 'message-1' })).toBe('message-1');
+    expect(messageIdOf({ id: { _serialized: 'message-2' } })).toBe('message-2');
+  });
+
+  it('does not claim an id when WAHA omitted one', () => {
+    expect(messageResult('Forwarded', { sent: [] })).toBe('Forwarded.');
   });
 });
 

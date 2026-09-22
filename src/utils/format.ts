@@ -117,11 +117,17 @@ export function messageIdOf(result: unknown): string {
     return `${key.fromMe ? 'true' : 'false'}_${chatId}_${key.id}`;
   }
   const id = r?.id ?? result;
+  if (typeof r?.messageId === 'string') return r.messageId;
   if (typeof id === 'string') return id;
   if (id && typeof id === 'object') {
     const o = id as Record<string, unknown>;
     if (typeof o._serialized === 'string') return o._serialized;
     if (typeof o.id === 'string') return o.id;
   }
-  return JSON.stringify(id);
+  return '';
+}
+
+export function messageResult(action: string, result: unknown): string {
+  const id = messageIdOf(result);
+  return id ? `${action}. id=${id}` : `${action}.`;
 }
