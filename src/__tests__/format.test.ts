@@ -176,7 +176,7 @@ describe('projectMessage', () => {
     expect(out.media).toBe(true);
   });
 
-  it('projects only lean replyTo fields (id + truncated body), never _data', () => {
+  it('projects only lean replyTo fields, never _data', () => {
     const raw = {
       id: 'msg0',
       participant: '972500000002@c.us',
@@ -184,7 +184,11 @@ describe('projectMessage', () => {
       _data: { huge: 'raw engine blob' },
     } as WAMessage['replyTo'];
     const out = projectMessage(makeMessage({ replyTo: raw }));
-    expect(out.replyTo).toEqual({ id: 'msg0', body: `${'x'.repeat(79)}…` });
+    expect(out.replyTo).toEqual({
+      id: 'msg0',
+      participant: '972500000002@c.us',
+      body: `${'x'.repeat(79)}…`,
+    });
   });
 
   it('includes participant for incoming group messages', () => {

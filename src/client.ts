@@ -82,7 +82,7 @@ export class WAHAClient {
       signal: AbortSignal.timeout(this.timeoutMs),
     };
 
-    if (body !== undefined && method !== 'GET' && method !== 'DELETE') {
+    if (body !== undefined && method !== 'GET') {
       options.body = JSON.stringify(body);
     }
 
@@ -190,8 +190,12 @@ export class WAHAClient {
     return this.request<T>('PUT', path, body);
   }
 
-  async delete<T>(path: string): Promise<T> {
-    return this.request<T>('DELETE', path);
+  async patch<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>('PATCH', path, body);
+  }
+
+  async delete<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>('DELETE', path, body);
   }
 
   /**

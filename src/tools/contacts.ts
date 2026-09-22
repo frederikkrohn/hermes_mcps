@@ -5,6 +5,7 @@ import { WAHAClient } from '../client.js';
 import { ContactInfo, ContactExistsResult } from '../types.js';
 import { defineTool } from '../utils/define-tool.js';
 import { compactJson, listResponse, projectContact } from '../utils/format.js';
+import { visibleIdMap } from '../utils/lid.js';
 
 export function registerContactTools(server: McpServer, client: WAHAClient): void {
   defineTool(server, {
@@ -25,7 +26,8 @@ export function registerContactTools(server: McpServer, client: WAHAClient): voi
         offset,
         sortBy,
       });
-      return listResponse(contacts, { map: projectContact, offset, limit, label: 'contacts' });
+      const visibleId = await visibleIdMap(client, session, contacts.map((contact) => contact.id));
+      return listResponse(contacts, { map: (contact) => projectContact(contact, visibleId), offset, limit, label: 'contacts' });
     },
   });
 
@@ -40,7 +42,8 @@ export function registerContactTools(server: McpServer, client: WAHAClient): voi
     handler: async ({ contactId, session }) => {
       // Single-contact lookup is GET /api/contacts with contactId as a QUERY param.
       const contact = await client.get<ContactInfo>('/api/contacts', { session, contactId });
-      return compactJson(contact);
+      const visibleId = await visibleIdMap(client, session, [contact.id]);
+      return compactJson(projectContact(contact, visibleId));
     },
   });
 

@@ -49,3 +49,49 @@ export async function resolveLid(
   }
   return undefined;
 }
+
+interface LidMapping {
+  lid?: string;
+  pn?: string | null;
+}
+
+export type VisibleId = (rawId: string) => string;
+
+export async function visibleIdMap(
+  client: WAHAClient,
+  session: string,
+  ids: Iterable<string | undefined | null>,
+): Promise<VisibleId> {
+  const rawLids = new Set<string>();
+  const resolved = new Map<string, string>();
+  for (const id of ids) {
+    if (!id?.endsWith('@lid')) continue;
+    rawLids.add(id);
+    const cached = lidCacheGet(`${session}|${id}`);
+    if (cached) resolved.set(id, cached);
+  }
+
+  if (Array.from(rawLids).some((id) => !resolved.has(id))) {
+    const pageSize = 500;
+    let offset = 0;
+    try {
+      while (true) {
+        const page = await client.get<LidMapping[]>(
+          `/api/${encodeURIComponent(session)}/lids`,
+          { limit: pageSize, offset },
+        );
+        for (const mapping of page) {
+          if (!mapping.lid || !mapping.pn) continue;
+          lidCacheSet(`${session}|${mapping.lid}`, mapping.pn);
+          if (rawLids.has(mapping.lid)) resolved.set(mapping.lid, mapping.pn);
+        }
+        if (page.length < pageSize) break;
+        offset += page.length;
+      }
+    } catch {
+      // Projection is best-effort; WAHA routing must keep native ids.
+    }
+  }
+
+  return (rawId: string): string => resolved.get(rawId) ?? rawId;
+}

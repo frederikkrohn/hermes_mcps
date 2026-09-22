@@ -5,6 +5,8 @@ import { WAHAClient } from '../client.js';
 import { WAMessage } from '../types.js';
 import { defineTool } from '../utils/define-tool.js';
 import { compactJson, formatTime, listResponse, truncate } from '../utils/format.js';
+import { visibleIdMap } from '../utils/lid.js';
+import type { VisibleId } from '../utils/lid.js';
 
 interface ChatOverview {
   id: string;
@@ -35,10 +37,10 @@ interface RawChat {
   pinned?: boolean;
 }
 
-function projectRawChat(c: RawChat): Record<string, unknown> {
+function projectRawChat(c: RawChat, visibleId: VisibleId = (id) => id): Record<string, unknown> {
   const id = typeof c.id === 'object' && c.id !== null ? c.id._serialized ?? '' : c.id;
   const out: Record<string, unknown> = {
-    id,
+    id: visibleId(id),
     name: c.name || undefined,
   };
   if (c.unreadCount) out.unread = c.unreadCount;
@@ -51,9 +53,9 @@ function projectRawChat(c: RawChat): Record<string, unknown> {
   return out;
 }
 
-function projectOverview(c: ChatOverview): Record<string, unknown> {
+function projectOverview(c: ChatOverview, visibleId: VisibleId = (id) => id): Record<string, unknown> {
   const out: Record<string, unknown> = {
-    id: c.id,
+    id: visibleId(c.id),
     name: c.name || undefined,
   };
   const unread = c._chat?.unreadCount;
@@ -61,7 +63,7 @@ function projectOverview(c: ChatOverview): Record<string, unknown> {
   if (c.lastMessage) {
     out.lastMessage = {
       time: formatTime(c.lastMessage.timestamp),
-      from: c.lastMessage.fromMe ? 'me' : c.lastMessage.from,
+      from: c.lastMessage.fromMe ? 'me' : visibleId(c.lastMessage.from),
       preview: c.lastMessage.body ? truncate(c.lastMessage.body, 80) : undefined,
       hasMedia: c.lastMessage.hasMedia || undefined,
     };
@@ -87,7 +89,12 @@ export function registerChatTools(server: McpServer, client: WAHAClient): void {
         `/api/${encodeURIComponent(session)}/chats`,
         { limit, offset, sortBy, sortOrder },
       );
-      return listResponse(chats, { map: projectRawChat, offset, limit, label: 'chats' });
+      const visibleId = await visibleIdMap(
+        client,
+        session,
+        chats.map((chat) => typeof chat.id === 'object' ? chat.id._serialized : chat.id),
+      );
+      return listResponse(chats, { map: (chat) => projectRawChat(chat, visibleId), offset, limit, label: 'chats' });
     },
   });
 
@@ -105,7 +112,12 @@ export function registerChatTools(server: McpServer, client: WAHAClient): void {
         `/api/${encodeURIComponent(session)}/chats/overview`,
         { limit, offset },
       );
-      return listResponse(chats, { map: projectOverview, offset, limit, label: 'chats' });
+      const visibleId = await visibleIdMap(
+        client,
+        session,
+        chats.flatMap((chat) => [chat.id, chat.lastMessage?.from]),
+      );
+      return listResponse(chats, { map: (chat) => projectOverview(chat, visibleId), offset, limit, label: 'chats' });
     },
   });
 
@@ -127,7 +139,8 @@ export function registerChatTools(server: McpServer, client: WAHAClient): void {
       if (!chat) {
         return `Chat ${chatId} not found. Verify the id with waha_inbox or waha_find_chat.`;
       }
-      return compactJson(projectOverview(chat));
+      const visibleId = await visibleIdMap(client, session, [chat.id, chat.lastMessage?.from]);
+      return compactJson(projectOverview(chat, visibleId));
     },
   });
 

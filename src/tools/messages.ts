@@ -7,7 +7,7 @@ import { fileSourceToWahaFile, fileToBase64 } from '../utils/file-utils.js';
 import { compactJson, listResponse, messageResult, projectMessage } from '../utils/format.js';
 import { throttleSend } from '../utils/throttle.js';
 import { defineTool } from '../utils/define-tool.js';
-import { resolveLid } from '../utils/lid.js';
+import { resolveLid, visibleIdMap } from '../utils/lid.js';
 
 /** Build the WAHA file object from a local path or a URL (exactly one must be set). */
 async function buildFileObject(
@@ -315,7 +315,17 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
       );
       if (timestampGte !== undefined) messages = messages.filter((m) => m.timestamp >= timestampGte);
       if (timestampLte !== undefined) messages = messages.filter((m) => m.timestamp <= timestampLte);
-      return listResponse(messages, { map: projectMessage, offset, limit, label: 'messages' });
+      const visibleId = await visibleIdMap(
+        client,
+        session,
+        messages.flatMap((message) => [
+          message.from,
+          message.to,
+          message.participant,
+          message.replyTo?.participant,
+        ]),
+      );
+      return listResponse(messages, { map: (message) => projectMessage(message, visibleId), offset, limit, label: 'messages' });
     },
   });
 
@@ -334,7 +344,13 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
         `/api/${encodeURIComponent(session)}/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}`,
         { downloadMedia },
       );
-      return compactJson(projectMessage(message));
+      const visibleId = await visibleIdMap(client, session, [
+        message.from,
+        message.to,
+        message.participant,
+        message.replyTo?.participant,
+      ]);
+      return compactJson(projectMessage(message, visibleId));
     },
   });
 

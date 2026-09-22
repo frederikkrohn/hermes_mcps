@@ -1,4 +1,5 @@
 import { ChatInfo, ContactInfo, GroupInfo, WAMessage } from '../types.js';
+import type { VisibleId } from './lid.js';
 
 /** Compact JSON — no pretty-print indentation (halves token cost vs (null, 2)). */
 export function compactJson(value: unknown): string {
@@ -40,11 +41,11 @@ export function listResponse<T, R>(
 
 // ---------- Entity projections (lean fields only) ----------
 
-export function projectMessage(m: WAMessage): Record<string, unknown> {
+export function projectMessage(m: WAMessage, visibleId: VisibleId = (id) => id): Record<string, unknown> {
   const out: Record<string, unknown> = {
     id: m.id,
     time: formatTime(m.timestamp),
-    from: m.fromMe ? 'me' : m.from,
+    from: m.fromMe ? 'me' : visibleId(m.from),
     body: m.body || undefined,
   };
   if (m.hasMedia) {
@@ -53,21 +54,24 @@ export function projectMessage(m: WAMessage): Record<string, unknown> {
       : true;
   }
   // Group messages: from is the group id — surface the actual sender.
-  if (!m.fromMe && m.participant) out.participant = m.participant;
+  if (!m.fromMe && m.participant) out.participant = visibleId(m.participant);
   if (m.replyTo) {
     // Project only the lean fields — engines attach the full raw quoted message in _data.
     out.replyTo = {
       id: m.replyTo.id,
       body: m.replyTo.body ? truncate(m.replyTo.body, 80) : undefined,
     };
+    if (m.replyTo.participant) {
+      (out.replyTo as Record<string, unknown>).participant = visibleId(m.replyTo.participant);
+    }
   }
   if (m.fromMe && m.ackName) out.ack = m.ackName;
   return out;
 }
 
-export function projectChat(c: ChatInfo): Record<string, unknown> {
+export function projectChat(c: ChatInfo, visibleId: VisibleId = (id) => id): Record<string, unknown> {
   const out: Record<string, unknown> = {
-    id: c.id,
+    id: visibleId(c.id),
     name: c.name || undefined,
   };
   if (c.unreadCount) out.unread = c.unreadCount;
@@ -79,9 +83,9 @@ export function projectChat(c: ChatInfo): Record<string, unknown> {
   return out;
 }
 
-export function projectContact(c: ContactInfo): Record<string, unknown> {
+export function projectContact(c: ContactInfo, visibleId: VisibleId = (id) => id): Record<string, unknown> {
   const out: Record<string, unknown> = {
-    id: c.id,
+    id: visibleId(c.id),
     name: c.name || c.pushname || undefined,
   };
   if (c.name && c.pushname && c.name !== c.pushname) out.pushname = c.pushname;

@@ -16,6 +16,7 @@ import { registerStatusTools } from './tools/status.js';
 import { registerMediaTools } from './tools/media.js';
 import { registerCompoundTools } from './tools/compound.js';
 import { registerWatchTools } from './tools/watches.js';
+import { registerListTools } from './tools/lists.js';
 
 const WAHA_URL = process.env.WAHA_URL || 'http://localhost:3001';
 const WAHA_API_KEY = process.env.WAHA_API_KEY;
@@ -54,6 +55,7 @@ registerContactTools(server, client);
 registerGroupTools(server, client);
 registerPresenceTools(server, client);
 registerLabelTools(server, client);
+registerListTools(server, client);
 registerInteractiveTools(server, client);
 registerStatusTools(server, client);
 registerMediaTools(server, client);
