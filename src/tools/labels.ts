@@ -5,6 +5,7 @@ import { WAHAClient } from '../client.js';
 import { ChatInfo, Label } from '../types.js';
 import { defineTool } from '../utils/define-tool.js';
 import { listResponse, projectChat } from '../utils/format.js';
+import { visibleIdMap } from '../utils/lid.js';
 
 function projectLabel(l: Label): Record<string, unknown> {
   return {
@@ -127,7 +128,8 @@ export function registerLabelTools(server: McpServer, client: WAHAClient): void 
       const chats = await client.get<ChatInfo[]>(
         `/api/${encodeURIComponent(session)}/labels/${encodeURIComponent(labelId)}/chats`,
       );
-      return listResponse(chats, { map: projectChat, label: 'chats' });
+      const visibleId = await visibleIdMap(client, session, chats.map((chat) => chat.id));
+      return listResponse(chats, { map: (chat) => projectChat(chat, visibleId), label: 'chats' });
     },
   });
 }

@@ -5,7 +5,7 @@ import { WAHAClient } from '../client.js';
 import { SendResult, WAMessage } from '../types.js';
 import { defineTool } from '../utils/define-tool.js';
 import { compactJson, listResponse, messageIdOf, projectMessage } from '../utils/format.js';
-import { resolveLid } from '../utils/lid.js';
+import { resolveLid, visibleIdMap } from '../utils/lid.js';
 import { throttleSend } from '../utils/throttle.js';
 
 /** WAHA group messages carry the actual sender in `participant`. */
@@ -125,7 +125,17 @@ export function registerInteractiveTools(server: McpServer, client: WAHAClient):
       if (candidates.length === 0) {
         return 'No reply yet — check again later.';
       }
-      return listResponse(candidates, { map: projectMessage, label: 'replies' });
+      const visibleId = await visibleIdMap(
+        client,
+        session,
+        candidates.flatMap((message) => [
+          message.from,
+          message.to,
+          message.participant,
+          message.replyTo?.participant,
+        ]),
+      );
+      return listResponse(candidates, { map: (message) => projectMessage(message, visibleId), label: 'replies' });
     },
   });
 }
