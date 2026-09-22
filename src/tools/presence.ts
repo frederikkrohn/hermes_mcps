@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { sessionParam } from '../utils/session.js';
-import { WAHAApiError, WAHAClient } from '../client.js';
+import { WAHAClient } from '../client.js';
 import { PresenceData } from '../types.js';
 import { defineTool } from '../utils/define-tool.js';
 import { compactJson, formatTime } from '../utils/format.js';
@@ -60,19 +60,9 @@ export function registerPresenceTools(server: McpServer, client: WAHAClient): vo
     },
     annotations: { readOnlyHint: true },
     handler: async ({ chatId, session }) => {
-      let result: ChatPresences;
-      try {
-        result = await client.get<ChatPresences>(
-          `/api/${encodeURIComponent(session)}/presence/${encodeURIComponent(chatId)}`,
-        );
-      } catch (error) {
-        if (error instanceof WAHAApiError && error.statusCode === 500) {
-          throw new Error(
-            'Presence queries are not supported by the WEBJS engine on this WAHA build. Use NOWEB/GOWS for presence features.',
-          );
-        }
-        throw error;
-      }
+      const result = await client.get<ChatPresences>(
+        `/api/${encodeURIComponent(session)}/presence/${encodeURIComponent(chatId)}`,
+      );
       const presences = result.presences ?? [];
       if (presences.length === 0) {
         return `No presence data for ${result.id ?? chatId}. Try waha_subscribe_presence first.`;
