@@ -75,7 +75,8 @@ export function mimeFromPath(pathOrUrl: string): string | undefined {
 /**
  * Convert an HTTP/data URL into the file shape expected by WAHA.
  * WAHA treats `url` and `data` as different input paths, so data: URIs must
- * be decoded into the base64 `data` field before sending.
+ * be decoded into the base64 `data` field before sending. Sending a data URI
+ * as `url` makes WAHA try to download it as HTTP and causes media sends to fail.
  */
 export function fileSourceToWahaFile(
   source: string,

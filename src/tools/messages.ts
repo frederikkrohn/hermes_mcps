@@ -34,6 +34,9 @@ async function contactIdToWahaContact(
   session: string,
   contactId: string,
 ): Promise<Record<string, string>> {
+  // Hermes may receive a LID, but WAHA's contact-card endpoint needs a
+  // phone-number JID and the contact DTO. Resolving/fetching here prevents
+  // vCards from failing or containing only an opaque LID.
   const resolvedId = contactId.endsWith('@lid')
     ? await resolveLid(client, session, contactId)
     : contactId;
@@ -238,6 +241,8 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
         contactsId.map((contactId) => contactIdToWahaContact(client, session, contactId)),
       );
       await throttleSend(chatId);
+      // WAHA's vCard endpoint expects the resolved contact DTOs, not the
+      // input IDs; using contactsId here produces no usable contact card.
       const result = await client.post<SendResult>('/api/sendContactVcard', { session, chatId, contacts });
       return `Sent. id=${messageIdOf(result)}`;
     },
@@ -298,6 +303,8 @@ export function registerMessageTools(server: McpServer, client: WAHAClient): voi
       const params: Record<string, string | number | boolean | undefined> = { limit, offset };
       if (downloadMedia !== undefined) params.downloadMedia = downloadMedia;
       if (fromMe !== undefined) params['filter.fromMe'] = fromMe;
+      // Forward timestamp bounds to WAHA; otherwise the tool advertises a
+      // time range but downloads the whole chat before filtering locally.
       if (timestampGte !== undefined) params['filter.timestamp.gte'] = timestampGte;
       if (timestampLte !== undefined) params['filter.timestamp.lte'] = timestampLte;
       if (ack !== undefined) params['filter.ack'] = ack;

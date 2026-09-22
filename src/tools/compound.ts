@@ -156,6 +156,9 @@ export function registerCompoundTools(server: McpServer, client: WAHAClient): vo
 
       const typeRank = (type: Match['type']): number =>
         type === 'group' ? 3 : type === 'chat' ? 2 : 1;
+      // A contact and a chat may share a display name but have different IDs
+      // (`@c.us` vs `@lid`). Prefer the chat so follow-up tools address the
+      // conversation instead of a same-named contact.
       const ranked = [...matches.values()]
         .sort((a, b) => b.score - a.score || typeRank(b.type) - typeRank(a.type))
         .slice(0, limit);
@@ -232,6 +235,9 @@ export function registerCompoundTools(server: McpServer, client: WAHAClient): vo
         { limit, downloadMedia: true, 'filter.timestamp.gte': sinceTimestamp },
       );
       if (sinceTimestamp !== undefined) {
+        // Keep the lower bound server-side so pagination starts at the
+        // requested time; this local check remains a guard for older WAHA
+        // versions that ignore the query parameter.
         messages = messages.filter((m) => m.timestamp >= sinceTimestamp);
       }
       if (messages.length === 0) {
