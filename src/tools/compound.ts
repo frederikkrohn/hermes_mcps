@@ -235,7 +235,7 @@ export function registerCompoundTools(server: McpServer, client: WAHAClient): vo
         messages = messages.filter((m) => m.timestamp >= sinceTimestamp);
       }
       if (messages.length === 0) {
-        return `No messages found in ${chatId}${sinceTimestamp ? ` since ${formatTime(sinceTimestamp)}` : ''}.`;
+        return `No messages found in ${chatId}${sinceTimestamp !== undefined ? ` since ${formatTime(sinceTimestamp)}` : ''}.`;
       }
       messages.sort((a, b) => a.timestamp - b.timestamp);
 
